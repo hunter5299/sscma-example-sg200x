@@ -1,0 +1,10 @@
+# Ignore these folders entirely
+/vision/
+/sg2002_quant_tools/
+
+# Local build artifacts
+/build/
+
+# User files
+*.swp
+*.swo

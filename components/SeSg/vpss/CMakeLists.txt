@@ -1,0 +1,11 @@
+file(GLOB_RECURSE SESG_VPSS_SOURCES
+    ${CMAKE_CURRENT_LIST_DIR}/src/*.c
+    ${CMAKE_CURRENT_LIST_DIR}/src/*.cpp
+)
+
+component_register(
+    COMPONENT_NAME sesg_vpss
+    INCLUDE_DIRS "${CMAKE_CURRENT_LIST_DIR}/include"
+    SRCS ${SESG_VPSS_SOURCES}
+    PRIVATE_REQUIREDS sophgo
+)

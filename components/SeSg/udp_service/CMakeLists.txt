@@ -1,0 +1,10 @@
+file(GLOB_RECURSE UDP_SERVICE_SOURCES
+    ${CMAKE_CURRENT_LIST_DIR}/src/*.c
+    ${CMAKE_CURRENT_LIST_DIR}/src/*.cpp
+)
+
+component_register(
+    COMPONENT_NAME udp_service
+    INCLUDE_DIRS "${CMAKE_CURRENT_LIST_DIR}/include"
+    SRCS ${UDP_SERVICE_SOURCES}
+)

@@ -3,5 +3,9 @@ build/
 install/
 *.a
 *.so
+
+!components/SeSg/opencv_objdetect/**/*.a
+!components/SeSg/opencv_objdetect/**/*.so
+
 solutions/vision/
 solutions/sg2002_quant_tools/

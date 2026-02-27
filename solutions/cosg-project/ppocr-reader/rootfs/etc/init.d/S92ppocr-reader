@@ -1,0 +1,96 @@
+#!/bin/sh
+
+### BEGIN INIT INFO
+# Provides:          ppocr-reader
+# Required-Start:    $network $local_fs
+# Required-Stop:     $network $local_fs
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: PP-OCRv3 Text Detection & Recognition
+### END INIT INFO
+
+NAME=ppocr-reader
+DAEMON=/usr/local/bin/ppocr-reader
+PIDFILE=/var/run/$NAME.pid
+LOGFILE=/var/log/$NAME.log
+
+# Library paths required for CVI SDK
+export LD_LIBRARY_PATH=/mnt/system/lib:/mnt/system/usr/lib:/mnt/system/usr/lib/3rd:/mnt/system/lib/3rd:/lib:/usr/lib
+
+# Default options
+DAEMON_OPTS="--det-model /userdata/local/models/ppocr_det_cv181x_mix.cvimodel --rec-model /userdata/local/models/ppocr_rec_cv181x_bf16.cvimodel --dict /userdata/local/dict/ppocr_keys_v1.txt"
+
+# Load config if exists
+[ -f /etc/ppocr-reader.conf ] && . /etc/ppocr-reader.conf
+
+# Stop conflicting services that use the camera
+stop_conflicting_services() {
+    echo "Stopping conflicting services..."
+    for prefix in S K; do
+        [ -x /etc/init.d/${prefix}91sscma-node ] && /etc/init.d/${prefix}91sscma-node stop 2>/dev/null || true
+        [ -x /etc/init.d/${prefix}03node-red ] && /etc/init.d/${prefix}03node-red stop 2>/dev/null || true
+        [ -x /etc/init.d/${prefix}93sscma-supervisor ] && /etc/init.d/${prefix}93sscma-supervisor stop 2>/dev/null || true
+    done
+    sleep 2
+}
+
+start() {
+    echo "Starting $NAME..."
+    if [ -f $PIDFILE ]; then
+        PID=$(cat $PIDFILE 2>/dev/null)
+        if [ -n "$PID" ] && [ -d "/proc/$PID" ]; then
+            echo "$NAME is already running (PID: $PID)"
+            return 1
+        fi
+        rm -f $PIDFILE
+    fi
+
+    stop_conflicting_services
+
+    start-stop-daemon -S -b -m -p $PIDFILE -a /bin/sh -- -c "exec $DAEMON $DAEMON_OPTS >> $LOGFILE 2>&1"
+    echo "OK"
+}
+
+stop() {
+    echo "Stopping $NAME..."
+    if [ -f $PIDFILE ]; then
+        start-stop-daemon -K -p $PIDFILE -s TERM
+        rm -f $PIDFILE
+        echo "OK"
+    else
+        echo "$NAME is not running"
+    fi
+}
+
+restart() {
+    stop
+    sleep 2
+    start
+}
+
+status() {
+    if [ -f $PIDFILE ]; then
+        PID=$(cat $PIDFILE 2>/dev/null)
+        if [ -n "$PID" ] && [ -d "/proc/$PID" ]; then
+            echo "$NAME is running (PID: $PID)"
+            return 0
+        fi
+    fi
+    PID=$(ps aux 2>/dev/null | grep "$DAEMON" | grep -v grep | awk '{print $1}' | head -1)
+    if [ -n "$PID" ]; then
+        echo "$NAME is running (PID: $PID)"
+        return 0
+    fi
+    echo "$NAME is not running"
+    return 1
+}
+
+case "$1" in
+    start) start ;;
+    stop) stop ;;
+    restart) restart ;;
+    status) status ;;
+    *) echo "Usage: $0 {start|stop|restart|status}"; exit 1 ;;
+esac
+
+exit 0

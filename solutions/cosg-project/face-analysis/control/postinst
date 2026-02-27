@@ -1,0 +1,28 @@
+#!/bin/sh
+
+# Post-installation script for face-analysis
+
+echo "Installing Face Analysis Application..."
+
+# Create models directory if not exists
+mkdir -p /userdata/local/models
+
+# Set permissions
+chmod +x /usr/local/bin/face-analysis
+
+echo "Face Analysis installed successfully!"
+echo ""
+echo "Usage: face-analysis [options]"
+echo "       face-analysis --help for more options"
+echo ""
+echo "Models should be placed in: /userdata/local/models/"
+echo "  - scrfd_500m_int8.cvimodel (face detection)"
+echo "  - genderage_int8.cvimodel (age/gender)"
+echo "  - emotion_int8.cvimodel (emotion recognition)"
+echo ""
+echo "Configuration file: /etc/face-analysis.conf"
+echo ""
+echo "RTSP stream: rtsp://<device_ip>:554/live"
+echo "MQTT topic: recamera/face-analysis/results"
+
+exit 0

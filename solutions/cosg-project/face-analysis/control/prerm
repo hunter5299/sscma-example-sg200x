@@ -1,0 +1,12 @@
+#!/bin/sh
+
+# Pre-removal script for face-analysis
+
+echo "Removing Face Analysis Application..."
+
+# Stop the service if running
+pkill -f face-analysis 2>/dev/null || true
+
+echo "Face Analysis removed."
+
+exit 0

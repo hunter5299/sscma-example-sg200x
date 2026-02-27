@@ -1,0 +1,8 @@
+#!/bin/sh
+# Post-removal script for ppocr-reader
+
+# Clean up PID file and log
+rm -f /var/run/ppocr-reader.pid
+rm -f /var/log/ppocr-reader.log
+
+exit 0

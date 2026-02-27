@@ -1,0 +1,9 @@
+#!/bin/sh
+# Pre-removal script for ppocr-reader
+
+# Stop the service if running
+if [ -x /etc/init.d/S92ppocr-reader ]; then
+    /etc/init.d/S92ppocr-reader stop 2>/dev/null || true
+fi
+
+exit 0

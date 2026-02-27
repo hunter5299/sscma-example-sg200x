@@ -1,0 +1,18 @@
+#!/bin/sh
+# Post-installation script for ppocr-reader
+
+# Create model and dict directories
+mkdir -p /userdata/local/models
+mkdir -p /userdata/local/dict
+
+# Make init script executable
+chmod +x /etc/init.d/S92ppocr-reader
+
+echo "ppocr-reader installed successfully"
+echo ""
+echo "Before starting, copy the models and dictionary to the device:"
+echo "  scp ppocr_det_cv181x_int8.cvimodel recamera@192.168.42.1:/userdata/local/models/"
+echo "  scp ppocr_rec_cv181x_int8.cvimodel recamera@192.168.42.1:/userdata/local/models/"
+echo "  scp ppocr_keys_v1.txt recamera@192.168.42.1:/userdata/local/dict/"
+echo ""
+echo "Then start: /etc/init.d/S92ppocr-reader start"

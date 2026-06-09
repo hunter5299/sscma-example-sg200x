@@ -4,6 +4,8 @@
 #include <cstring>
 #include <cmath>
 #include <chrono>
+#include <cstdlib>
+#include <string>
 #include <opencv2/opencv.hpp>
 
 #define TAG "OcrPipeline"
@@ -78,10 +80,11 @@ bool OcrPipeline::cropTextRegion(const ma_img_t* img, const TextBox& box,
 
     if (out_w < 2 || out_h < 2) return false;
 
-    // Add vertical padding (15% of height on each side) to ensure
-    // the recognition model has enough context around text edges.
-    float pad_ratio = 0.15f;
-    float pad_h = std::max(height_left, height_right) * pad_ratio;
+    // PP-OCR recognition is sensitive to tight crops. DBNet boxes follow the
+    // glyph edges closely, so keep a full text-height margin vertically and a
+    // small margin horizontally before perspective correction.
+    float pad_h = std::max(height_left, height_right) * 1.0f;
+    float pad_w = std::max(width_top, width_bot) * 0.05f;
 
     // Compute perpendicular direction to the top edge
     cv::Point2f top_dir(src_pts[1].x - src_pts[0].x, src_pts[1].y - src_pts[0].y);
@@ -90,7 +93,7 @@ bool OcrPipeline::cropTextRegion(const ma_img_t* img, const TextBox& box,
         top_dir.x /= top_len;
         top_dir.y /= top_len;
     }
-    cv::Point2f up_normal(-top_dir.y, top_dir.x);
+    cv::Point2f up_normal(top_dir.y, -top_dir.x);
 
     // Expand: move top points up, bottom points down
     src_pts[0].x += up_normal.x * pad_h;
@@ -102,6 +105,16 @@ bool OcrPipeline::cropTextRegion(const ma_img_t* img, const TextBox& box,
     src_pts[3].x -= up_normal.x * pad_h;
     src_pts[3].y -= up_normal.y * pad_h;
 
+    // Expand along the text direction as well.
+    src_pts[0].x -= top_dir.x * pad_w;
+    src_pts[0].y -= top_dir.y * pad_w;
+    src_pts[3].x -= top_dir.x * pad_w;
+    src_pts[3].y -= top_dir.y * pad_w;
+    src_pts[1].x += top_dir.x * pad_w;
+    src_pts[1].y += top_dir.y * pad_w;
+    src_pts[2].x += top_dir.x * pad_w;
+    src_pts[2].y += top_dir.y * pad_w;
+
     // Clip source points to image bounds
     for (int i = 0; i < 4; ++i) {
         src_pts[i].x = std::max(0.0f, std::min(static_cast<float>(img->width - 1), src_pts[i].x));
@@ -109,6 +122,7 @@ bool OcrPipeline::cropTextRegion(const ma_img_t* img, const TextBox& box,
     }
 
     // Update output height to include padding
+    out_w = static_cast<int>(out_w + 2 * pad_w);
     out_h = static_cast<int>(out_h + 2 * pad_h);
 
     // Destination points (rectangle)
@@ -224,6 +238,15 @@ std::vector<OcrResult> OcrPipeline::process(ma_img_t* img, OcrTimings& timings) 
         int crop_w = 0, crop_h = 0;
         if (!cropTextRegion(img, box, crop_buffer_, crop_w, crop_h)) {
             continue;
+        }
+
+        const char* debug_crop_dir = std::getenv("PPOCR_DEBUG_CROP_DIR");
+        if (debug_crop_dir && debug_crop_dir[0] != '\0') {
+            cv::Mat crop_rgb(crop_h, crop_w, CV_8UC3, crop_buffer_.data());
+            cv::Mat crop_bgr;
+            cv::cvtColor(crop_rgb, crop_bgr, cv::COLOR_RGB2BGR);
+            std::string crop_path = std::string(debug_crop_dir) + "/crop_" + std::to_string(bi) + ".jpg";
+            cv::imwrite(crop_path, crop_bgr);
         }
 
         RecognitionResult rec = recognizer_.recognize(crop_buffer_.data(), crop_w, crop_h);

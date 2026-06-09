@@ -47,6 +47,7 @@ static struct {
 
     // Test mode
     std::string test_rec_image;  // If set, test recognizer with this image and exit
+    std::string test_image;      // If set, test full OCR pipeline with this image and exit
 } g_config;
 
 // Global state
@@ -74,6 +75,7 @@ static void print_usage(const char* prog) {
     printf("  --no-rtsp            Disable RTSP streaming\n");
     printf("  --no-mqtt            Disable MQTT publishing\n");
     printf("  --test-rec PATH      Test recognizer with an image file and exit\n");
+    printf("  --test-image PATH    Test full OCR pipeline with an image file and exit\n");
     printf("  -v, --verbose        Enable verbose logging\n");
     printf("  -h, --help           Show this help\n");
     printf("\n");
@@ -91,6 +93,7 @@ static bool parse_args(int argc, char** argv) {
         {"no-rtsp", no_argument, 0, 7},
         {"no-mqtt", no_argument, 0, 8},
         {"test-rec", required_argument, 0, 9},
+        {"test-image", required_argument, 0, 10},
         {"verbose", no_argument, 0, 'v'},
         {"help", no_argument, 0, 'h'},
         {0, 0, 0, 0}
@@ -108,6 +111,7 @@ static bool parse_args(int argc, char** argv) {
             case 7: g_config.enable_rtsp = false; break;
             case 8: g_config.enable_mqtt = false; break;
             case 9: g_config.test_rec_image = optarg; break;
+            case 10: g_config.test_image = optarg; break;
             case 'v': g_config.verbose = true; break;
             case 'h': print_usage(argv[0]); exit(0);
             default: print_usage(argv[0]); return false;
@@ -323,12 +327,71 @@ static int run_test_rec(const std::string& image_path) {
     return 0;
 }
 
+// Test the complete detection + recognition pipeline with a reference image.
+static int run_test_image(const std::string& image_path) {
+    MA_LOGI(TAG, "=== Test Full OCR Pipeline Mode ===");
+    MA_LOGI(TAG, "Image: %s", image_path.c_str());
+    MA_LOGI(TAG, "Detection model: %s", g_config.det_model_path.c_str());
+    MA_LOGI(TAG, "Recognition model: %s", g_config.rec_model_path.c_str());
+    MA_LOGI(TAG, "Dict: %s", g_config.dict_path.c_str());
+
+    ::cv::Mat img = ::cv::imread(image_path, ::cv::IMREAD_COLOR);
+    if (img.empty()) {
+        MA_LOGE(TAG, "Failed to load image: %s", image_path.c_str());
+        return 1;
+    }
+    MA_LOGI(TAG, "Image loaded: %dx%d channels=%d", img.cols, img.rows, img.channels());
+
+    ::cv::Mat rgb;
+    ::cv::cvtColor(img, rgb, ::cv::COLOR_BGR2RGB);
+
+    OcrPipeline pipeline;
+    if (!pipeline.init(g_config.det_model_path, g_config.rec_model_path, g_config.dict_path)) {
+        MA_LOGE(TAG, "Failed to init OCR pipeline");
+        return 1;
+    }
+
+    ma_img_t frame{};
+    frame.size = static_cast<uint32_t>(rgb.total() * rgb.elemSize());
+    frame.width = static_cast<uint16_t>(rgb.cols);
+    frame.height = static_cast<uint16_t>(rgb.rows);
+    frame.format = MA_PIXEL_FORMAT_RGB888;
+    frame.rotate = MA_PIXEL_ROTATE_0;
+    frame.physical = false;
+    frame.data = rgb.data;
+
+    OcrTimings timings;
+    auto results = pipeline.process(&frame, timings);
+
+    printf("=== OCR Result ===\n");
+    printf("Image: %dx%d\n", frame.width, frame.height);
+    printf("Texts: %zu\n", results.size());
+    printf("Time: det=%.1f ms rec=%.1f ms total=%.1f ms\n",
+           timings.detection_ms, timings.recognition_ms, timings.total_ms);
+
+    for (size_t i = 0; i < results.size(); ++i) {
+        const auto& r = results[i];
+        printf("[%zu] det=%.4f rec=%.4f text=\"%s\" box=",
+               i, r.det_confidence, r.rec_confidence, r.text.c_str());
+        for (int p = 0; p < 4; ++p) {
+            printf("%s(%.1f,%.1f)", p == 0 ? "" : ",",
+                   r.box.points[p][0], r.box.points[p][1]);
+        }
+        printf("\n");
+    }
+
+    return 0;
+}
+
 int main(int argc, char** argv) {
     if (!parse_args(argc, argv)) return 1;
 
     // Test mode: run recognizer on a single image and exit
     if (!g_config.test_rec_image.empty()) {
         return run_test_rec(g_config.test_rec_image);
+    }
+    if (!g_config.test_image.empty()) {
+        return run_test_image(g_config.test_image);
     }
 
     MA_LOGI(TAG, "Starting PP-OCRv3 Text Reader");

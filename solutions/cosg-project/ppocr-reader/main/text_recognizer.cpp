@@ -115,7 +115,8 @@ void TextRecognizer::preprocess(const uint8_t* rgb_data, int width, int height) 
         resize_buffer_.resize(buffer_size);
     }
 
-    // Fill with gray (128 -> maps to 0 after normalization [-1,1])
+    // PaddleOCR pads the normalized recognition tensor with zeros. With fused
+    // preprocessing, raw uint8 128 maps close to normalized zero.
     std::memset(resize_buffer_.data(), 128, buffer_size);
 
     // PP-OCR standard preprocessing:

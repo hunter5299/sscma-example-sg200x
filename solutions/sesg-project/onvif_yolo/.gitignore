@@ -1,0 +1,6 @@
+build/
+model/
+*.cvimodel
+*.onnx
+*.pth
+*.pt

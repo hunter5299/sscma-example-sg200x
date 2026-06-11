@@ -1,0 +1,11 @@
+[discover] 发送 Probe 到 239.255.255.250:3702 ...
+[discover] 发现设备 192.168.2.249 -> http://192.168.2.249:8080/onvif/device_service
+
+[onvif] device_service = http://192.168.2.249:8080/onvif/device_service
+[onvif] 设备信息:
+    Manufacturer: Seeed Studio
+    Model: reCamera
+    FirmwareVersion: 1.0-onvif-yolo
+    SerialNumber: RECAMERA-0001
+    HardwareId: SG2002
+[onvif] RTSP Stream URI = rtsp://192.168.2.249:8554/live

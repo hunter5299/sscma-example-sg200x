@@ -335,11 +335,14 @@ struct SesgRtspVpssStreamer::Impl {
 
         st.canvas_argb1555.assign(static_cast<size_t>(st.w) * st.h, 0);
 
+        // FIX: 本 BSP 的 RGN 只能 attach 到 VPSS 或 VO（attach 到 VENC 会报
+        // "rgn can only be attached to vpss or vo"）。VENC 通道 N 对应 VPSS grp0/chn N
+        // （见 sophgo/video: VpssGrp=0, VpssChn=VencChn）。因此这里 attach 到 VPSS。
         MMF_CHN_S chn;
         std::memset(&chn, 0, sizeof(chn));
-        chn.enModId = CVI_ID_VENC;
-        chn.s32DevId = 0;
-        chn.s32ChnId = vencChn;
+        chn.enModId = CVI_ID_VPSS;
+        chn.s32DevId = 0;          // VpssGrp
+        chn.s32ChnId = vencChn;    // VpssChn == VencChn
 
         RGN_ATTR_S attr;
         std::memset(&attr, 0, sizeof(attr));
@@ -348,6 +351,8 @@ struct SesgRtspVpssStreamer::Impl {
         attr.unAttr.stOverlay.stSize.u32Width = st.w;
         attr.unAttr.stOverlay.stSize.u32Height = st.h;
         attr.unAttr.stOverlay.u32BgColor = 0;
+        // FIX: RGN driver requires u32CanvasNum>=1 (2=double buffer); without it rgn_create fails with invalid u32CanvasNum(0).
+        attr.unAttr.stOverlay.u32CanvasNum = 2;
 
         RGN_CHN_ATTR_S chnAttr;
         std::memset(&chnAttr, 0, sizeof(chnAttr));
@@ -430,7 +435,7 @@ struct SesgRtspVpssStreamer::Impl {
             if (!st.rgn_ready || st.rgn_handle < 0) continue;
             MMF_CHN_S chn;
             std::memset(&chn, 0, sizeof(chn));
-            chn.enModId = CVI_ID_VENC;
+            chn.enModId = CVI_ID_VPSS;   // FIX: 与 attach 一致，detach 也用 VPSS
             chn.s32DevId = 0;
             chn.s32ChnId = kv.first;
             (void)CVI_RGN_DetachFromChn(st.rgn_handle, &chn);

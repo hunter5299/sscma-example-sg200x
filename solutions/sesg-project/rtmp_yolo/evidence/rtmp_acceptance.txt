@@ -1,0 +1,8 @@
+=== RTMP AI IPC 验收日志 ===
+设备: reCamera (192.168.2.249) -> ffmpeg relay -> SRS (192.168.2.113:1935) -> seeed 拉流
+
+[设备] rtmp_yolo: 摄像头 -> YOLO11n(NPU,~38ms) -> RGN/OSD 画框 -> H.264 RTSP(8554)
+[设备] ffmpeg: RTSP -> RTMP (-c copy, 无重编码) -> rtmp://192.168.2.113:1935/live/recamera
+[SRS]  收到 publish: stream=/live/recamera, H264 Baseline 1280x720
+[验收] seeed ffmpeg 拉 rtmp://127.0.0.1:1935/live/recamera 录制成功
+[验收] 检测到 person 类别，红色检测框+类别标签正确叠加 (17/70 帧含框，夜间暗光场景)
